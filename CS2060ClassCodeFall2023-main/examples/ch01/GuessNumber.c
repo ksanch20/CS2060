@@ -12,6 +12,8 @@
 #define MAX 1000
 
 //
+puts("Hello Kylie");
+
 void guessGame(void); 
 bool isCorrect(int guess, int answer); 
 
