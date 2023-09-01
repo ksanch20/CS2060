@@ -5,6 +5,42 @@
 // function main begins program execution 
 int main(void) {
    printf("Welcome to C!\n");
+    
+    int length = 0;
+    int width = 0;
+    int area=0;
+    int scanfReturn=0;
+    double average =0;
+    
+    puts("Enter the length");
+    scanfReturn = scanf("%d", &length);
+    if (scanfReturn==0){
+        puts("Invalid input");
+    }
+    else{
+        
+        puts("Enter the width");
+        scanfReturn = scanf("%d", &width);
+        if (scanfReturn==0){
+            puts("Invalid input");
+        }
+        
+        else{
+            
+            
+            area = width * length;
+            
+            printf("Length: %d, width: %d,  and area is %d\n", length, width, area);
+            
+            average = (double)length / width;
+            
+            printf("The average is %.1f\n",average);
+            
+        }
+    }
+
+    
+    return 0;
 } // end function main 
 
 
