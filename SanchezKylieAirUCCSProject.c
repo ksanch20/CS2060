@@ -47,18 +47,18 @@ typedef struct  property {
 
 
 //function prototypes
-void printRentalPropertyInfo(unsigned int minNights, unsigned int maxNights, unsigned int interval1Nights, unsigned int interval2Nights, double rentalRate, double discount);
+void printRentalPropertyInfo(struct property* propertyPtr, const int MIN_NIGHTS, const int MAX_NIGHTS, const int DISCOUNT_MULTIPLY);
 int getValidInt(int min, int max, int sentinel, int length);
 double calculateCharges(unsigned int nights, unsigned int interval1Nights, unsigned int interval2Nights, double rate, double discount);
 void printNightsCharges(unsigned int nights, double charges);
 bool getIdAndPass (const char* correctPassword, const char* correctId,const int maxAttempts, int stringLength);
-bool scanInt(const char* str, int *validIntPtr);
+bool scanInt(const char* str, int* validIntPtr, int min, int max);
 char* fgetsTrim(char* str);
 void setUpProperty(struct property* propertyPtr,int minNights, int maxNights, int length, int sentinel,int minRate, int maxRate);
 void getRenterRatings(struct property* propertyPtr, int max, int min, int categories, int rows,   const char *surveyCategories[RENTER_SURVEY_CATEGORIES], int length, int sentinel);
 void rentalMode(struct property* propertyPtr, int sentinelValue, int minNights, int maxNights, int categories, int rows, int length, int minRating, int maxRating);
 void printCategoryData(double categoryAverage[],size_t categories,const char *surveyCategories[]);
-
+void printSurveyResults( size_t renters, size_t categories, struct property* propertyPtr);
 
 
 //function main begins program execution
@@ -89,12 +89,13 @@ int main (void){
 //This function prints the rental information to console
 //Input: rental info
 //Return: void
-void printRentalPropertyInfo(unsigned int minNights, unsigned int maxNights, unsigned int interval1Nights, unsigned int interval2Nights, double rentalRate, double discount){
-    
-    printf("Rental Property can be rented for %d and %d nights.\n", minNights, maxNights);
-    printf("$%.2f rate a night for the first %d nights.\n", rentalRate,interval1Nights);
-    printf("$%.2f discount rate a night for nights %d to %d\n",discount, (interval1Nights+1), interval2Nights);
-    printf("$%.2f discount rate a night for each remaining night over %d\n\n", (discount*2),interval2Nights);
+void printRentalPropertyInfo(struct property* propertyPtr, const int MIN_NIGHTS, const int MAX_NIGHTS, const int DISCOUNT_MULTIPLY){
+    printf("\nRental Property: %s\n", propertyPtr->name);
+    printf("Location: %s\n", propertyPtr->location);
+    printf("Rental Property can be rented for %d and %d nights.\n", MIN_NIGHTS, MAX_NIGHTS);
+    printf("$%d rate a night for the first %d nights.\n", propertyPtr-> rentalRate, propertyPtr->interval1Nights);
+    printf("$%u discount rate a night for nights %d to %d\n",propertyPtr -> discount, (propertyPtr->interval1Nights+1), propertyPtr->interval2Nights);
+    printf("$%u discount rate a night for each remaining night over %d\n\n", (propertyPtr->discount*DISCOUNT_MULTIPLY),propertyPtr->interval2Nights);
 }//end function printRentalPropertyInfo
 
 
@@ -104,7 +105,7 @@ void printRentalPropertyInfo(unsigned int minNights, unsigned int maxNights, uns
 //returns: valid user input
 int getValidInt(int min, int max, int sentinel, int length){
     
-  unsigned int validInt=0; // number to be read from user
+ int validInt=0; // number to be read from user
     bool validInput=false;
     char userInput[length];
     
@@ -113,6 +114,7 @@ int getValidInt(int min, int max, int sentinel, int length){
         
         fgets(userInput,length,stdin);
         fgetsTrim(userInput);
+      validInput=  scanInt(userInput, &validInt, min, max);
         
      
         
@@ -159,13 +161,13 @@ void printNightsCharges(unsigned int nights, double charges){
     }
 }//end function printNightsCharges
 
-bool scanInt(const char* str, int* validIntPtr){
+bool scanInt(const char* str, int* validIntPtr, int min, int max){
     char*end;
     errno=0;
     bool validIntFlag=false;
     long intTest=strtol(str, &end, 10);
     if (end == str) {
-        puts("Error: not an number");
+        puts("Error: not a number");
     }
     else if ('\0' != *end) {
         puts("Error: extra characters at end of input");
@@ -173,15 +175,17 @@ bool scanInt(const char* str, int* validIntPtr){
     else if ((LONG_MIN == intTest || LONG_MAX == intTest) && ERANGE == errno) {
         puts("Error: out of range for type");
     }
-    else if (intTest > INT_MAX) {
+    else if (intTest > max) {
         puts("Error: greater than max");
     }
-    else if (intTest < INT_MIN) {
+    else if (intTest < min) {
         puts("Error: less than min");
     }
     else {
         
         validIntFlag=true;
+        *validIntPtr=(int)intTest;
+        
     }
     return validIntFlag;
 }
@@ -262,8 +266,9 @@ void rentalMode(struct property* propertyPtr, int sentinelValue, int minNights, 
     int numNights=0;
     int cost=0;
     while(rentalMode==true){
-        printRentalPropertyInfo(minNights, maxNights, propertyPtr->interval1Nights, propertyPtr->interval2Nights, propertyPtr->rentalRate, propertyPtr->discount);
+        printRentalPropertyInfo(propertyPtr,MIN_RENTAL_NIGHTS,MAX_RENTAL_NIGHTS,DISCOUNT_MULTIPLIER );
         puts("Enter number of nights you want to stay ");
+        printSurveyResults(VACATION_RENTERS, RENTER_SURVEY_CATEGORIES, propertyPtr);
        numNights= getValidInt(minNights, maxNights, sentinelValue, length);
         if(numNights!=sentinelValue){
             cost= calculateCharges(numNights, propertyPtr->interval1Nights, propertyPtr->interval2Nights, propertyPtr->rentalRate, propertyPtr->discount);
@@ -334,4 +339,22 @@ void printCategoryData(double categoryAverage[],size_t categories,const char *su
         printf("%-20.1f ", categoryAverage[i]);
     }
     puts("\n");
+}
+
+//This function prints the survey results
+//input: number of renters, number of categories, and rental survey //array
+//return: void
+void printSurveyResults( size_t renters, size_t categories, struct property* propertyPtr){
+    if(propertyPtr->ratings[0]==0){
+        puts("No ratings currently");
+    }
+    else{
+        for(int i=0; i<renters; i++){
+            printf("Survey %d: ", i+1);
+            for(int j=0; j<categories; j++){
+                printf("%-3d",propertyPtr->ratings[i][j]);
+            }
+            puts("\n");
+        }
+    }
 }
