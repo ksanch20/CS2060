@@ -343,16 +343,22 @@ void setUpProperty(struct property* propertyPtr,int minNights, int maxNights, in
     strcpy(propertyPtr->surveyCategories[0],"Check-in Process");
     strcpy(propertyPtr->surveyCategories[1],"Cleanliness");
     strcpy(propertyPtr->surveyCategories[2],"Amenitites");
-    
 
     propertyPtr->totalRenters=0;
     propertyPtr->totalCharge=0;
     propertyPtr->totalNights=0;
+    
     for(size_t i=0; i<renters;i++){
         for(size_t j=0; j<categories;j++){
             propertyPtr->ratings[i][j]=0;
         }
     }
+    
+    for(size_t j=0; j<categories;j++){
+        propertyPtr->categoryAverage[j]=0;
+    }
+    
+    
 }//end setUpProperty
 
 
@@ -415,8 +421,8 @@ void calculateCategoryAverage(struct property* propertyPtr, size_t renters, size
         for(size_t i=0; i<renters; i++){
             total+=propertyPtr->ratings[i][j];
             
-            propertyPtr-> categoryAverage[j]=total/propertyPtr->totalRenters;
         }
+        propertyPtr-> categoryAverage[j]=total/propertyPtr->totalRenters;
     }
 }//end calculateCategoryAverage
 
