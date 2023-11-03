@@ -42,9 +42,9 @@ typedef struct  property {
     unsigned int interval2Nights;
     unsigned int rentalRate;
     unsigned int discount;
-    const char *surveyCategories[RENTER_SURVEY_CATEGORIES];
+    char surveyCategories[RENTER_SURVEY_CATEGORIES][LENGTH];
     int ratings[VACATION_RENTERS][RENTER_SURVEY_CATEGORIES];
-    double *categoryAverage;
+    double categoryAverage[RENTER_SURVEY_CATEGORIES];
 }Property;
 
 
@@ -57,13 +57,14 @@ bool getIdAndPass (const char* correctPassword, const char* correctId,const int 
 bool scanIntSent(const char* str, int* validIntPtr, int min, int max, int sentinel);
 char* fgetsTrim(char* str);
 void setUpProperty(struct property* propertyPtr,int minNights, int maxNights, int length, int sentinel, int minRate, int maxRate, int categories, int renters);
-void getRenterRatings(struct property* propertyPtr, int max, int min, int categories, int rows,   const char *surveyCategories[RENTER_SURVEY_CATEGORIES], int length, int sentinel);
+void getRenterRatings(struct property* propertyPtr, int max, int min, int categories, int rows,   char surveyCategories[RENTER_SURVEY_CATEGORIES][LENGTH], int length, int sentinel );
 void rentalMode(struct property* propertyPtr, int sentinelValue, int minNights, int maxNights, int categories, int rows, int length, int minRating, int maxRating);
-void printCategoryData(double categoryAverage[],size_t categories,const char *surveyCategories[]);
 void printSurveyResults( size_t renters, size_t categories, struct property* propertyPtr);
 void calculateCategoryAverage(struct property* propertyPtr, size_t renters, size_t categories);
 bool scanInt(const char* str, int* validIntPtr, int min, int max);
 int getValidInt(int min, int max, int length);
+void printCategories(const char categories[], size_t totalCategories);
+void printCategoryData(struct property* propertyPtr, size_t categories);
 
 
 //function main begins program execution
@@ -101,10 +102,9 @@ int main (void){
             //Print out rental summary
             //Print total nights, charges, and renters
             printNightsCharges(property1.totalNights, property1.totalCharge, loginRenterSummary, property1.totalRenters);
-            puts("Category Rating Averages");
             
             //Print survey category averages
-            printCategoryData(property1.categoryAverage, RENTER_SURVEY_CATEGORIES, property1.surveyCategories);
+            printCategoryData(&property1, RENTER_SURVEY_CATEGORIES);
         }
        }
     
@@ -340,12 +340,14 @@ void setUpProperty(struct property* propertyPtr,int minNights, int maxNights, in
     fgets(propertyPtr->location, LENGTH, stdin);
     fgetsTrim(propertyPtr->location);
     
-    propertyPtr-> surveyCategories[0] = "Check-in Process";
-    propertyPtr-> surveyCategories[1] = "Cleanliness";
-    propertyPtr-> surveyCategories[2] = "Amenities";
+    strcpy(propertyPtr->surveyCategories[0],"Check-in Process");
+    strcpy(propertyPtr->surveyCategories[1],"Cleanliness");
+    strcpy(propertyPtr->surveyCategories[2],"Amenitites");
     
 
     propertyPtr->totalRenters=0;
+    propertyPtr->totalCharge=0;
+    propertyPtr->totalNights=0;
     for(size_t i=0; i<renters;i++){
         for(size_t j=0; j<categories;j++){
             propertyPtr->ratings[i][j]=0;
@@ -355,7 +357,7 @@ void setUpProperty(struct property* propertyPtr,int minNights, int maxNights, in
 
 
 //This function puts prpogram into rental mode until the sentinel value is entered
-void rentalMode(struct property* propertyPtr, int sentinelValue, int minNights, int maxNights, int categories, int rows, int length, int minRating, 
+void rentalMode(struct property* propertyPtr, int sentinelValue, int minNights, int maxNights, int categories, int rows, int length, int minRating,
     int maxRating){
     
     bool rentalMode=true;
@@ -386,7 +388,7 @@ void rentalMode(struct property* propertyPtr, int sentinelValue, int minNights, 
 //This function gets ratings from renter
 //input: renter enters rating for each category
 //Output: Prompts user for rating and states when survey is full
-void getRenterRatings(struct property* propertyPtr, int max, int min, int categories, int rows,   const char *surveyCategories[RENTER_SURVEY_CATEGORIES], int length, int sentinel ){
+void getRenterRatings(struct property* propertyPtr, int max, int min, int categories, int rows,   char surveyCategories[RENTER_SURVEY_CATEGORIES][LENGTH], int length, int sentinel ){
     int currentRow = propertyPtr-> totalRenters-1;
     if(currentRow<rows){
         for(size_t cat=0; cat< categories; cat++ ){
@@ -419,34 +421,25 @@ void calculateCategoryAverage(struct property* propertyPtr, size_t renters, size
 }//end calculateCategoryAverage
 
 
-//This function prints the rating categories for the customer
-//input:category array and number of categories
-//returns: void
-//Output: prints categories
-void printCategories(const char *categories[], size_t totalCategories)
-{
-    //loop to display each category horizontally
-    printf("%s", "Rating Categories:\t");
-    for (size_t surveyCategory = 0; surveyCategory < totalCategories; ++surveyCategory)
-    {
-        printf("\t%zu.%s\t", surveyCategory+1, categories[surveyCategory]);
-    }
-    puts(""); // start new line of output
-}//end printCategories
-
 
 //this function prints the average ratings
 //input:number of categories, category average and survey category arrays
 //return: void
 //Output: prints survey averages
-void printCategoryData(double categoryAverage[],size_t categories,const char *surveyCategories[]){
-    printCategories(surveyCategories, categories);
-    printf("Rating averages                ");
-    for(size_t i=0; i<categories; i++){
-        printf("%-20.1f ", categoryAverage[i]);
+void printCategoryData(struct property* propertyPtr, size_t categories){
+    puts("Category Rating Averages");
+    
+    if(propertyPtr->totalRenters==0){
+        puts("There are currently no ratings");
     }
-    puts("\n");
+    else{
+        for(size_t cat=0; cat< categories; cat++ ){
+            printf("%s: %-20.1f\n", propertyPtr->surveyCategories[cat], propertyPtr->categoryAverage[cat]);
+        }
+    }
+
 }//end printCategoryData
+
 
 
 //This function prints the survey results
