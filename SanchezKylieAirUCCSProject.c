@@ -18,7 +18,7 @@
 //Define constants
 #define LENGTH 80
 #define VACATION_RENTERS 5
-#define RENTER_SURVEY_CATEGORIES 4
+#define RENTER_SURVEY_CATEGORIES 3
 #define CORRECT_ID "id1"
 #define CORRECT_PASSWORD "ABCD"
 #define LOGIN_MAX_ATTEMPTS 3
@@ -67,7 +67,16 @@ bool scanInt(const char* str, int* validIntPtr, int min, int max);
 int getValidInt(int min, int max, int length);
 void printCategories(const char categories[], size_t totalCategories);
 void printCategoryData(struct property* propertyPtr, size_t categories);
-void displayRentalSummary(struct property* propertyPtr, bool loginRenterSummary, int renterCategories);
+void displayRentalSummary(struct property* propertyPtr, bool loginRenterSummary, int renterCategories, int renters);
+void insertProperty(Property** headPtr, int minNights, int maxNights, int length, int minRate, int maxRate, int categories, int rental);
+char validateYesNo(void);
+void addProperty(Property** headPtr, int minNights, int maxNights, int length, int minRate, int maxRate, int categories, int rental);
+Property* selectProperty(Property* headPtr, int stringLength);
+void deleteProperties(Property** headPtr);
+void writeToFile(const Property* propertyPtr, FILE* file, int categories);
+void RentalSummaryToFile(const Property* propertyPtr, const char* fileName, int categories);
+void replaceSpaces(char* str);
+void filePath(const char* directory, char* fileName, char* result);
 
 
 //function main begins program execution
@@ -75,6 +84,7 @@ int main (void){
     
     bool loginRenterSummary=false;
     bool correctLogin=false;
+
     
   //Get Id and Password from user
    correctLogin =  getIdAndPass(CORRECT_PASSWORD, CORRECT_ID, LOGIN_MAX_ATTEMPTS, LENGTH);
@@ -82,13 +92,14 @@ int main (void){
     //if login successful
     if(correctLogin==true){
         
+        Property* headPtr=NULL;
         //allow user to set up property info
-    Property property1;
-    setUpProperty(&property1, MIN_RENTAL_NIGHTS, MAX_RENTAL_NIGHTS, LENGTH, MIN_RATE,MAX_RATE,RENTER_SURVEY_CATEGORIES,VACATION_RENTERS);
+        addProperty(&headPtr, MIN_RENTAL_NIGHTS, MAX_RENTAL_NIGHTS, LENGTH, MIN_RATE, MAX_RATE, RENTER_SURVEY_CATEGORIES, RENTER_SURVEY_CATEGORIES);
+        
         
         while(loginRenterSummary==false){
             //rental mode begins
-            rentalMode(&property1, SENTINAL_NEG1, MIN_RENTAL_NIGHTS, MAX_RENTAL_NIGHTS, RENTER_SURVEY_CATEGORIES, VACATION_RENTERS, LENGTH, MIN_RATING,
+            rentalMode(headPtr, SENTINAL_NEG1, MIN_RENTAL_NIGHTS, MAX_RENTAL_NIGHTS, RENTER_SURVEY_CATEGORIES, VACATION_RENTERS, LENGTH, MIN_RATING,
                        MAX_RATING);
             
             //Get Id and Pass
@@ -97,13 +108,19 @@ int main (void){
         
         //if login successful
         if(loginRenterSummary==true){
+            Property* currentPropertyPtr=headPtr;
+            while(currentPropertyPtr!=NULL){
+                displayRentalSummary(currentPropertyPtr, loginRenterSummary, RENTER_SURVEY_CATEGORIES, VACATION_RENTERS);
+                currentPropertyPtr=currentPropertyPtr->nextPropertyPtr;
+            }
+            
 
-            //calculate survey averages
-            calculateCategoryAverage(&property1, VACATION_RENTERS, RENTER_SURVEY_CATEGORIES);
-            displayRentalSummary(&property1, loginRenterSummary, RENTER_SURVEY_CATEGORIES);
+            
+            RentalSummaryToFile(headPtr, "/Users/kyliesanchez/Desktop/CFile/property.txt", RENTER_SURVEY_CATEGORIES);
+            deleteProperties(&headPtr);
         }
        }
-    
+
 }//end Main
 
 
@@ -167,7 +184,7 @@ void setUpProperty(struct property* propertyPtr,int minNights, int maxNights, in
     
     strcpy(propertyPtr->surveyCategories[0],"Check-in Process");
     strcpy(propertyPtr->surveyCategories[1],"Cleanliness");
-    strcpy(propertyPtr->surveyCategories[2],"Amenitites");
+    strcpy(propertyPtr->surveyCategories[2],"Amenities");
 
 
     propertyPtr->totalRenters=0;
@@ -208,23 +225,32 @@ void rentalMode(struct property* propertyPtr, int sentinelValue, int minNights, 
     bool rentalSummary=false;
     int numNights=0;
     int cost=0;
+    Property* current = propertyPtr;
     
     while(rentalMode==true){
-        printRentalPropertyInfo(propertyPtr,MIN_RENTAL_NIGHTS,MAX_RENTAL_NIGHTS,DISCOUNT_MULTIPLIER );
-        printSurveyResults(VACATION_RENTERS, RENTER_SURVEY_CATEGORIES, propertyPtr);
-        puts("Enter number of nights you want to stay ");
-       numNights= getValidIntSent(minNights, maxNights, sentinelValue, length);
-        if(numNights!=sentinelValue){
-            cost= calculateCharges(numNights, propertyPtr->interval1Nights, propertyPtr->interval2Nights, propertyPtr->rentalRate, propertyPtr->discount);
-            printNightsCharges(numNights, cost, rentalSummary, propertyPtr->totalRenters);
+        while(current!=NULL){
+            printRentalPropertyInfo(current,MIN_RENTAL_NIGHTS,MAX_RENTAL_NIGHTS,DISCOUNT_MULTIPLIER );
+            printSurveyResults(VACATION_RENTERS, RENTER_SURVEY_CATEGORIES, current);
             
-            propertyPtr->totalCharge+=cost;
-            propertyPtr->totalNights+=numNights;
-            propertyPtr->totalRenters++;
-            
-            getRenterRatings(propertyPtr, maxRating, minRating, categories, rows, propertyPtr->surveyCategories, length, sentinelValue);
+            current=current->nextPropertyPtr;
         }
-        else rentalMode=false;
+        
+        Property* usersSelection = selectProperty(propertyPtr, length);
+            puts("Enter number of nights you want to stay ");
+            numNights= getValidIntSent(minNights, maxNights, sentinelValue, length);
+            if(numNights!=sentinelValue){
+                cost= calculateCharges(numNights, usersSelection->interval1Nights, usersSelection->interval2Nights, usersSelection->rentalRate, usersSelection->discount);
+                printNightsCharges(numNights, cost, rentalSummary, usersSelection->totalRenters);
+                
+                usersSelection->totalCharge+=cost;
+                usersSelection->totalNights+=numNights;
+                 usersSelection->totalRenters++;
+                
+                getRenterRatings(usersSelection, maxRating, minRating, categories, rows, propertyPtr->surveyCategories, length, sentinelValue);
+                current = propertyPtr;
+            }
+            else rentalMode=false;
+        
     }
 }// end rentalMode
 
@@ -299,6 +325,9 @@ void getRenterRatings(struct property* propertyPtr, int max, int min, int catego
 //return: void
 //output: prints survey results
 void printSurveyResults( size_t renters, size_t categories, struct property* propertyPtr){
+    
+    puts("Survery Results");
+    
     if(propertyPtr->ratings[0][0]==0){
         puts("Currently no ratings");
     }
@@ -360,8 +389,8 @@ void printCategoryData(struct property* propertyPtr, size_t categories){
 }//end printCategoryData
 
 //This function displays the total renters and charges and prints out the survey average results.
-void displayRentalSummary(struct property* propertyPtr, bool loginRenterSummary, int renterCategories){
-  
+void displayRentalSummary(struct property* propertyPtr, bool loginRenterSummary, int renterCategories, int renters){
+    
     puts("\nRental Property Report");
     printf("Name: %s\n", propertyPtr->name);
     printf("Location: %s\n", propertyPtr->location);
@@ -371,6 +400,7 @@ void displayRentalSummary(struct property* propertyPtr, bool loginRenterSummary,
     printNightsCharges(propertyPtr->totalNights, propertyPtr->totalCharge, loginRenterSummary, propertyPtr->totalRenters);
     
     //Print survey category averages
+    calculateCategoryAverage(propertyPtr, renters, renterCategories);
     printCategoryData(propertyPtr, renterCategories);
 
 }
@@ -492,21 +522,29 @@ char* fgetsTrim(char* str){
 //This function changes input to all lowercase before calling strcmp
 //returns 0 if strings are equal, >0 if first string is greater than second, and <0 if second string is bigger than first
 int strcmpIgnoreCase(const char* str1,const char* str2, int stringLength ){
-    
-    //changes str1 to all lowercase temporarily
-    char tempString[stringLength];
-    size_t str1Length = strlen(str1);
-    for(size_t i=0; i< str1Length; i++){
-        tempString[i]=tolower(str1[i]);
+
+    while(*str1 && *str2){
+        char c1=tolower(*str1);
+        char c2=tolower(*str2);
+        
+        if(c1<c2){
+            return -1;
+        }
+        else if(c1>c2){
+            return 1;
+        }
+            str1++;
+            str2++;
     }
-    //changes str2 to all lowercase temporarily
-    char tempString2[stringLength];
-    size_t str2Length = strlen(str2);
-    for(size_t i=0; i<str2Length; i++){
-        tempString2[i]=tolower(str2[i]);
+    if (*str1=='\0' && *str2=='\0'){
+        return 0;
     }
-    //return result of strcmp on the two temporary, lowercase strings
-    return strcmp(tempString, tempString2);
+    else if(*str1 =='\0'){
+        return -1;
+    }
+    else{
+        return 1;
+    }
 }//end strcmpIgnoreCase
 
 //validate yes or no from user
@@ -528,7 +566,7 @@ char validateYesNo(void) {
 
 
 //This function adds property to linked list
-void insertProperty(Property** headPtr, int stringLength, int minNights, int maxNights, int length, int minRate, int maxRate, int categories, int rental){
+void insertProperty(Property** headPtr, int minNights, int maxNights, int length, int minRate, int maxRate, int categories, int rental){
     //allocates memory for new property and returns an address
     Property* newPropertyPtr = malloc(sizeof(Property));
     setUpProperty(newPropertyPtr, minNights, maxNights, length, minRate, maxRate, categories, rental);
@@ -541,7 +579,7 @@ void insertProperty(Property** headPtr, int stringLength, int minNights, int max
         Property* currentPtr= *headPtr;
         
         //iterate through linked list until match is found or currentPtr is null
-        while(currentPtr!=NULL && strcmpIgnoreCase(currentPtr->name, newPropertyPtr->name, stringLength)<0){
+        while(currentPtr!=NULL && strcmpIgnoreCase(currentPtr->name, newPropertyPtr->name, length)<0){
             previousPtr=currentPtr;
             currentPtr=currentPtr->nextPropertyPtr;
         }
@@ -561,3 +599,138 @@ void insertProperty(Property** headPtr, int stringLength, int minNights, int max
         puts("No memory to add property");
     }
 }//end insertProperty
+
+void addProperty(Property** headPtr, int minNights, int maxNights, int length, int minRate, int maxRate, int categories, int rental){
+    char addProperty;
+    do{
+        insertProperty(headPtr, minNights, maxNights, length, minRate, maxRate, categories, rental);
+        puts("Do you want to add another property?");
+       addProperty= validateYesNo();
+    }
+    while (addProperty=='y');
+}
+
+Property* selectProperty(Property* headPtr, int stringLength){
+    Property* current= headPtr;
+    bool selectedProperty=false;
+    char userChoice[stringLength];
+    
+    while(selectedProperty==false){
+        puts("Enter the name of the property you want to rent");
+        fgets(userChoice, LENGTH, stdin);
+        fgetsTrim(userChoice);
+        current=headPtr;
+        
+        while(current!=NULL&&!selectedProperty){
+            if(strcmpIgnoreCase(current->name, userChoice, stringLength)==0){
+                selectedProperty=true;
+            }
+            if(!selectedProperty){
+                current=current->nextPropertyPtr;
+            }
+        }
+        if(selectedProperty==false){
+            puts( "Error, the property you entered doesn't match.");
+
+        }
+    
+    }
+           
+    return current;
+}
+
+//This function deletes all properties in the linked list
+void deleteProperties(Property** headPtr){
+    Property* currentPtr=*headPtr;
+    Property* nextPtr=NULL;
+    
+    //iterate until end of list and deallocate each property
+    while(currentPtr!=NULL){
+        nextPtr=currentPtr->nextPropertyPtr;
+        free(currentPtr);
+        currentPtr=nextPtr;
+    }
+    //set head pointer to null
+    *headPtr=NULL;
+}
+
+void RentalSummaryToFile(const Property* propertyPtr, const char* fileName, int categories){
+    
+  const Property* currentPtr = propertyPtr;
+    if(propertyPtr==NULL){
+        puts("No properties to write to file.\n");
+    }
+    
+    else{
+        //open file for writing
+        FILE* file = fopen(fileName, "w");
+        //if file doesnt open print error message
+        if (file==NULL){
+            puts("Error opening file\n");
+        }
+
+        while(currentPtr!=NULL){
+            writeToFile(currentPtr, file, categories);
+            currentPtr=currentPtr->nextPropertyPtr;
+        }
+        //close file
+        fclose(file);
+    }
+
+}
+
+
+void writeToFile(const Property* propertyPtr, FILE* file, int categories){
+    fputs("Rental Property Report\n", file);
+    fprintf(file, "Name: %s\n", propertyPtr->name);
+    fprintf(file,"Location: %s\n\n", propertyPtr->location);
+
+    if (propertyPtr->totalCharge==0){
+        fputs("Rental Property Total Summary\n", file);
+       fputs("There were no rentals\n", file);
+    }
+    else{
+        fputs("Rental Property Totals\n", file);
+        fputs("Renters   Nights      Charge\n", file);
+        fprintf(file,"%-11d %-11d $%.2u\n\n", propertyPtr->totalRenters, propertyPtr->totalNights, propertyPtr->totalCharge);
+        
+        fputs("Category Rating Averages\n", file);
+        
+        if(propertyPtr->totalRenters==0){
+            fputs("There are currently no ratings\n", file);
+        }
+        else{
+            for(size_t cat=0; cat< categories; cat++ ){
+                fprintf(file, "%s: %-20.1f\n", propertyPtr->surveyCategories[cat], propertyPtr->categoryAverage[cat]);
+            }
+            puts("\n");
+        }
+    }
+}
+
+void filePath(const char* directory, char* fileName, char* result){
+    
+    const char* directoryPath="/Users/kyliesanchez/Desktop/CFile/fundraiser";
+    const char* fileName= "gym.txt";
+    
+    strcpy(result, directory);
+    if (result[strlen(result) - 1] != '/') {
+        strcat(result, "/");
+    }
+    replaceSpaces(fileName);
+    strcat(result, fileName);
+}
+
+void replaceSpaces(char* str){
+    if(str==NULL){
+        puts("String is empty");
+    }
+    else{
+        size_t length = strlen(str);
+        for(size_t i=0; i<length; i++){
+            if (str[i]==' '){
+                str[i]='_';
+            }
+        }
+    }
+}
