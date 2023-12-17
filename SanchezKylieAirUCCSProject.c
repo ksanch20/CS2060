@@ -18,10 +18,10 @@
 //Define constants
 #define LENGTH 80
 #define VACATION_RENTERS 5
-#define RENTER_SURVEY_CATEGORIES 3
+#define RENTER_SURVEY_CATEGORIES 4
 #define CORRECT_ID "id1"
 #define CORRECT_PASSWORD "ABCD"
-#define LOGIN_MAX_ATTEMPTS 3
+#define LOGIN_MAX_ATTEMPTS 2
 #define SENTINAL_NEG1 -1
 #define MIN_RENTAL_NIGHTS 1
 #define MAX_RENTAL_NIGHTS 14
@@ -74,9 +74,11 @@ void addProperty(Property** headPtr, int minNights, int maxNights, int length, i
 Property* selectProperty(Property* headPtr, int stringLength);
 void deleteProperties(Property** headPtr);
 void writeToFile(const Property* propertyPtr, FILE* file, int categories);
-void RentalSummaryToFile(const Property* propertyPtr, const char* fileName, int categories);
+void rentalSummaryToFile(const Property* propertyPtr, const char* fileName, int categories);
 void replaceSpaces(char* str);
-void filePath(const char* directory, char* fileName, char* result);
+void filePath(const Property* propertyPtr, char directory[LENGTH], char* result, int length);
+void displayCategories(const Property* propertyPtr, size_t categories);
+
 
 
 //function main begins program execution
@@ -84,10 +86,11 @@ int main (void){
     
     bool loginRenterSummary=false;
     bool correctLogin=false;
-
+    char directory[LENGTH];
+    char filePathResults[LENGTH];
     
-  //Get Id and Password from user
-   correctLogin =  getIdAndPass(CORRECT_PASSWORD, CORRECT_ID, LOGIN_MAX_ATTEMPTS, LENGTH);
+    //Get Id and Password from user
+    correctLogin =  getIdAndPass(CORRECT_PASSWORD, CORRECT_ID, LOGIN_MAX_ATTEMPTS, LENGTH);
     
     //if login successful
     if(correctLogin==true){
@@ -108,19 +111,28 @@ int main (void){
         
         //if login successful
         if(loginRenterSummary==true){
+            
+            //set current to headPtr
             Property* currentPropertyPtr=headPtr;
+            strcpy(directory, "/Users/kyliesanchez/Desktop/CFile/fundraiser");
+            
+            //iterate until end of linked list
             while(currentPropertyPtr!=NULL){
+                
+                //display rental summary
                 displayRentalSummary(currentPropertyPtr, loginRenterSummary, RENTER_SURVEY_CATEGORIES, VACATION_RENTERS);
+                
+                //get filePath and write property summary to file
+                filePath(currentPropertyPtr, directory, filePathResults, LENGTH);
+                rentalSummaryToFile(currentPropertyPtr,filePathResults, RENTER_SURVEY_CATEGORIES);
+                
+                //move current to next property in list
                 currentPropertyPtr=currentPropertyPtr->nextPropertyPtr;
             }
-            
-
-            
-            RentalSummaryToFile(headPtr, "/Users/kyliesanchez/Desktop/CFile/property.txt", RENTER_SURVEY_CATEGORIES);
+            //delete all properties at end of program
             deleteProperties(&headPtr);
         }
-       }
-
+    }
 }//end Main
 
 
@@ -147,7 +159,7 @@ bool getIdAndPass (const char* correctPassword, const char* correctId, unsigned 
             puts("Error: incorrect id or password");
         }
         numAttempts++;
-      
+        
     }
     if(validLogin==false){
         puts("Error: you've exceeded max attempts. Try again later.");
@@ -156,8 +168,18 @@ bool getIdAndPass (const char* correctPassword, const char* correctId, unsigned 
 }// end getIdAndPass
 
 
+//displays allowed max and mins to property owner
+void propertyMaxAndMin(int maxNights, int minNights, int minRate, int maxRate){
+    printf("Minimum nights is %d\n", minNights);
+    printf("Maximum nights is %d\n", maxNights);
+    printf("Minimum rate is %d\n", minRate);
+    printf("Maximum rate is %d\n", maxRate);
+}
+
 //This function allows owner to set up property info
 void setUpProperty(struct property* propertyPtr,int minNights, int maxNights, int length, int minRate, int maxRate, int categories, int renters){
+    
+    propertyMaxAndMin(maxNights, minNights, minRate, maxRate);
     
     puts("Enter the number of nights until first discount ");
     propertyPtr->interval1Nights = getValidInt(minNights, maxNights, length);
@@ -185,8 +207,8 @@ void setUpProperty(struct property* propertyPtr,int minNights, int maxNights, in
     strcpy(propertyPtr->surveyCategories[0],"Check-in Process");
     strcpy(propertyPtr->surveyCategories[1],"Cleanliness");
     strcpy(propertyPtr->surveyCategories[2],"Amenities");
-
-
+    strcpy(propertyPtr->surveyCategories[3],"cat 4");
+    
     propertyPtr->totalRenters=0;
     propertyPtr->totalCharge=0;
     propertyPtr->totalNights=0;
@@ -200,8 +222,6 @@ void setUpProperty(struct property* propertyPtr,int minNights, int maxNights, in
     for(size_t j=0; j<categories;j++){
         propertyPtr->categoryAverage[j]=0;
     }
-    
-    
 }//end setUpProperty
 
 
@@ -217,9 +237,10 @@ void printRentalPropertyInfo(struct property* propertyPtr, const int MIN_NIGHTS,
     printf("$%u discount rate a night for each remaining night over %d\n\n", (propertyPtr->discount*DISCOUNT_MULTIPLY),propertyPtr->interval2Nights);
 }//end function printRentalPropertyInfo
 
+
 //This function puts prpogram into rental mode until the sentinel value is entered
 void rentalMode(struct property* propertyPtr, int sentinelValue, int minNights, int maxNights, int categories, int rows, int length, int minRating,
-    int maxRating){
+                int maxRating){
     
     bool rentalMode=true;
     bool rentalSummary=false;
@@ -236,21 +257,20 @@ void rentalMode(struct property* propertyPtr, int sentinelValue, int minNights, 
         }
         
         Property* usersSelection = selectProperty(propertyPtr, length);
-            puts("Enter number of nights you want to stay ");
-            numNights= getValidIntSent(minNights, maxNights, sentinelValue, length);
-            if(numNights!=sentinelValue){
-                cost= calculateCharges(numNights, usersSelection->interval1Nights, usersSelection->interval2Nights, usersSelection->rentalRate, usersSelection->discount);
-                printNightsCharges(numNights, cost, rentalSummary, usersSelection->totalRenters);
-                
-                usersSelection->totalCharge+=cost;
-                usersSelection->totalNights+=numNights;
-                 usersSelection->totalRenters++;
-                
-                getRenterRatings(usersSelection, maxRating, minRating, categories, rows, propertyPtr->surveyCategories, length, sentinelValue);
-                current = propertyPtr;
-            }
-            else rentalMode=false;
-        
+        puts("Enter number of nights you want to stay ");
+        numNights= getValidIntSent(minNights, maxNights, sentinelValue, length);
+        if(numNights!=sentinelValue){
+            cost= calculateCharges(numNights, usersSelection->interval1Nights, usersSelection->interval2Nights, usersSelection->rentalRate, usersSelection->discount);
+            printNightsCharges(numNights, cost, rentalSummary, usersSelection->totalRenters);
+            
+            usersSelection->totalCharge+=cost;
+            usersSelection->totalNights+=numNights;
+            usersSelection->totalRenters++;
+            
+            getRenterRatings(usersSelection, maxRating, minRating, categories, rows, propertyPtr->surveyCategories, length, sentinelValue);
+            current = propertyPtr;
+        }
+        else rentalMode=false;
     }
 }// end rentalMode
 
@@ -264,11 +284,11 @@ double calculateCharges(unsigned int nights, unsigned int interval1Nights, unsig
         charge = nights*rate;
     }//calculare charge within first interval of nights
     
- else if (nights>interval1Nights && nights<=interval2Nights){
+    else if (nights>interval1Nights && nights<=interval2Nights){
         charge= (interval1Nights * rate)+((nights-interval1Nights)*(rate-discount));
     }//calculate charge within second interval of nights
     
-else if( nights >interval2Nights){
+    else if( nights >interval2Nights){
         charge=(interval1Nights*rate)+ ((interval2Nights-interval1Nights))*((rate-discount))+((nights-interval2Nights)*(rate-(2*discount)));
     }//calculate charge within third interval of nights
     
@@ -320,6 +340,7 @@ void getRenterRatings(struct property* propertyPtr, int max, int min, int catego
     }
 }//end getRenterRatings
 
+
 //This function prints the survey results
 //input: number of renters, number of categories, and rental survey //array
 //return: void
@@ -333,25 +354,37 @@ void printSurveyResults( size_t renters, size_t categories, struct property* pro
     }
     else{
         if(propertyPtr->totalRenters<renters){
+            displayCategories(propertyPtr, categories);
             for(size_t i=0; i<propertyPtr->totalRenters; i++){
-                printf("Survey %d: ", i+1);
+                printf("Survey %d: \t\t\t\t\t", i+1);
                 for(size_t j=0; j<categories; j++){
-                    printf("%-3d",propertyPtr->ratings[i][j]);
+                    printf("%d\t\t\t\t",propertyPtr->ratings[i][j]);
                 }
                 puts("\n");
             }
         }
         else{
             for(size_t i=0; i<renters; i++){
-                printf("Survey %d: ", i+1);
+                displayCategories(propertyPtr, categories);
+                printf("Survey %d: \t\t\t\t\t", i+1);
                 for(size_t j=0; j<categories; j++){
-                    printf("%-3d",propertyPtr->ratings[i][j]);
+                    printf("%d\t\t",propertyPtr->ratings[i][j]);
                 }
                 puts("\n");
             }
         }
     }
 }// end printSurveyResults
+
+
+//This function displays the survey category names
+void displayCategories(const Property* propertyPtr, size_t categories){
+    printf("Rating Categories:\t");
+    for(int i=0; i<categories; i++){
+        printf("%d.%s\t", i+1, propertyPtr->surveyCategories[i]);
+    }
+    puts("\n");
+}//end displayCategories
 
 //this function calculates the average category rating
 //input: number of renters and categories, rental survey and category average array
@@ -369,7 +402,6 @@ void calculateCategoryAverage(struct property* propertyPtr, size_t renters, size
 }//end calculateCategoryAverage
 
 
-
 //this function prints the average ratings
 //input:number of categories, category average and survey category arrays
 //return: void
@@ -385,8 +417,9 @@ void printCategoryData(struct property* propertyPtr, size_t categories){
             printf("%s: %-20.1f\n", propertyPtr->surveyCategories[cat], propertyPtr->categoryAverage[cat]);
         }
     }
-
+    
 }//end printCategoryData
+
 
 //This function displays the total renters and charges and prints out the survey average results.
 void displayRentalSummary(struct property* propertyPtr, bool loginRenterSummary, int renterCategories, int renters){
@@ -402,8 +435,8 @@ void displayRentalSummary(struct property* propertyPtr, bool loginRenterSummary,
     //Print survey category averages
     calculateCategoryAverage(propertyPtr, renters, renterCategories);
     printCategoryData(propertyPtr, renterCategories);
-
 }
+
 
 //This function gets input from user and checks that it is valid
 //input: allowed range for input
@@ -417,12 +450,13 @@ int getValidInt(int min, int max, int length){
     do{
         fgets(userInput,length,stdin);
         fgetsTrim(userInput);
-      validInput=  scanInt(userInput, &validInt, min, max);
+        validInput=  scanInt(userInput, &validInt, min, max);
     }
     
     while(validInput==false);
     return validInt;
 }// end function getValidInt
+
 
 //this function checks if input is a valid int
 //input: user input
@@ -454,6 +488,7 @@ bool scanInt(const char* str, int* validIntPtr, int min, int max){
     return validIntFlag;
 }//endScanInt
 
+
 //This function gets input from user and checks that it is valid including sentinel value
 //input: allowed range for input
 //returns: valid user input
@@ -465,12 +500,13 @@ int getValidIntSent(int min, int max, int sentinel, int length){
     do{
         fgets(userInput,length,stdin);
         fgetsTrim(userInput);
-      validInput=  scanIntSent(userInput, &validInt, min, max,sentinel);
+        validInput=  scanIntSent(userInput, &validInt, min, max,sentinel);
     }
     
     while(validInput==false);
     return validInt;
 }// end function getValidIntSent
+
 
 //this function checks if input is a valid int including sentinel value
 //input: user input
@@ -522,47 +558,59 @@ char* fgetsTrim(char* str){
 //This function changes input to all lowercase before calling strcmp
 //returns 0 if strings are equal, >0 if first string is greater than second, and <0 if second string is bigger than first
 int strcmpIgnoreCase(const char* str1,const char* str2, int stringLength ){
-
+    
+    //loop until end of either string
     while(*str1 && *str2){
         char c1=tolower(*str1);
         char c2=tolower(*str2);
         
+        //if string 1 is less than string 2 return -1
         if(c1<c2){
             return -1;
         }
+        
+        //if string 1 is greater than string 2 return 1
         else if(c1>c2){
             return 1;
         }
-            str1++;
-            str2++;
+        //move to next character of both strings
+        str1++;
+        str2++;
     }
+    //if at end of both string return 0 (strings are equal)
     if (*str1=='\0' && *str2=='\0'){
         return 0;
     }
+    //if at end of string 1 return -1 (string 1 is smaller)
     else if(*str1 =='\0'){
         return -1;
     }
+    //if at end of string 2 return 1 (string 2 is smaller)
     else{
         return 1;
     }
 }//end strcmpIgnoreCase
+
 
 //validate yes or no from user
 char validateYesNo(void) {
     char validYesNo;
     
     do {
+        //ask user for y or n and store in validYesNo
         puts("Please enter (y)es or (n)o:");
         validYesNo = getchar();
         while (getchar() != '\n');
         
+        //convert char to lowercase so function is not case sensitive
         validYesNo = tolower(validYesNo);
         
+        //continue loop until "y" or "n" is entered
     } while (validYesNo != 'y' && validYesNo != 'n');
     
+    //return the value of validYesNo
     return  validYesNo;
 } //End validateYesNo
-
 
 
 //This function adds property to linked list
@@ -573,7 +621,7 @@ void insertProperty(Property** headPtr, int minNights, int maxNights, int length
     
     //if memory was allocated
     if(newPropertyPtr!=NULL){
-    
+        
         //set previouse pointer to null and currentPtr to head
         Property* previousPtr=NULL;
         Property* currentPtr= *headPtr;
@@ -600,47 +648,68 @@ void insertProperty(Property** headPtr, int minNights, int maxNights, int length
     }
 }//end insertProperty
 
+
+//This function asks the user if they want to add another property
 void addProperty(Property** headPtr, int minNights, int maxNights, int length, int minRate, int maxRate, int categories, int rental){
+    
     char addProperty;
     do{
+        //add first property
         insertProperty(headPtr, minNights, maxNights, length, minRate, maxRate, categories, rental);
+        //ask user if they want to add another property
         puts("Do you want to add another property?");
-       addProperty= validateYesNo();
+        //call validateYesNo function and store in addProperty
+        addProperty= validateYesNo();
     }
+    //keep loop going while user enters "y"
     while (addProperty=='y');
-}
+}//end addProperty
 
+
+//This function allows user to choose what property they want to rent
+//Goes until a correct property is entered
+//Returns property the user selected
 Property* selectProperty(Property* headPtr, int stringLength){
-    Property* current= headPtr;
+    
+    Property* currentPropertyPtr= headPtr;
     bool selectedProperty=false;
     char userChoice[stringLength];
     
+    //loop goes until user inputs valid property to rent
     while(selectedProperty==false){
+        
+        //ask user to enter property name and store in userChoice variable
         puts("Enter the name of the property you want to rent");
         fgets(userChoice, LENGTH, stdin);
         fgetsTrim(userChoice);
-        current=headPtr;
         
-        while(current!=NULL&&!selectedProperty){
-            if(strcmpIgnoreCase(current->name, userChoice, stringLength)==0){
+        //set current to headPtr
+        currentPropertyPtr=headPtr;
+        
+        //iterate until end of linked list or userChoice matches a property name
+        while(currentPropertyPtr!=NULL&&!selectedProperty){
+            //if user input a name that matches one of the property names set selectedPropety to true
+            if(strcmpIgnoreCase(currentPropertyPtr->name, userChoice, stringLength)==0){
                 selectedProperty=true;
             }
+            //if users entry was not valid move current to next property pointer
             if(!selectedProperty){
-                current=current->nextPropertyPtr;
+                currentPropertyPtr=currentPropertyPtr->nextPropertyPtr;
             }
         }
+        //if the loop ends and selectedProperty is still false, print error message
         if(selectedProperty==false){
             puts( "Error, the property you entered doesn't match.");
-
         }
-    
     }
-           
-    return current;
-}
+    //return the property with name that matches the user input
+    return currentPropertyPtr;
+}//end selectProperty
+
 
 //This function deletes all properties in the linked list
 void deleteProperties(Property** headPtr){
+    
     Property* currentPtr=*headPtr;
     Property* nextPtr=NULL;
     
@@ -652,15 +721,15 @@ void deleteProperties(Property** headPtr){
     }
     //set head pointer to null
     *headPtr=NULL;
-}
+}//end deleteProperties
 
-void RentalSummaryToFile(const Property* propertyPtr, const char* fileName, int categories){
+
+//This function opens a file and write the property info to it
+void rentalSummaryToFile(const Property* propertyPtr, const char* fileName, int categories){
     
-  const Property* currentPtr = propertyPtr;
     if(propertyPtr==NULL){
         puts("No properties to write to file.\n");
     }
-    
     else{
         //open file for writing
         FILE* file = fopen(fileName, "w");
@@ -668,37 +737,42 @@ void RentalSummaryToFile(const Property* propertyPtr, const char* fileName, int 
         if (file==NULL){
             puts("Error opening file\n");
         }
-
-        while(currentPtr!=NULL){
-            writeToFile(currentPtr, file, categories);
-            currentPtr=currentPtr->nextPropertyPtr;
+        
+        //call writeToFile function
+        else{
+            writeToFile(propertyPtr, file, categories);
         }
         //close file
         fclose(file);
     }
+}//end rentalSummaryToFile
 
-}
 
-
+//This function write the property information to a file
 void writeToFile(const Property* propertyPtr, FILE* file, int categories){
+    
     fputs("Rental Property Report\n", file);
     fprintf(file, "Name: %s\n", propertyPtr->name);
     fprintf(file,"Location: %s\n\n", propertyPtr->location);
-
+    
+    //if there were no charges, print out that there were no rentals
     if (propertyPtr->totalCharge==0){
         fputs("Rental Property Total Summary\n", file);
-       fputs("There were no rentals\n", file);
+        fputs("There were no rentals\n", file);
     }
+    //print out property totals
     else{
         fputs("Rental Property Totals\n", file);
         fputs("Renters   Nights      Charge\n", file);
         fprintf(file,"%-11d %-11d $%.2u\n\n", propertyPtr->totalRenters, propertyPtr->totalNights, propertyPtr->totalCharge);
         
+        //print out rating averages
         fputs("Category Rating Averages\n", file);
-        
+        //if no renters print out no ratings
         if(propertyPtr->totalRenters==0){
             fputs("There are currently no ratings\n", file);
         }
+        //print our rating averages
         else{
             for(size_t cat=0; cat< categories; cat++ ){
                 fprintf(file, "%s: %-20.1f\n", propertyPtr->surveyCategories[cat], propertyPtr->categoryAverage[cat]);
@@ -706,21 +780,33 @@ void writeToFile(const Property* propertyPtr, FILE* file, int categories){
             puts("\n");
         }
     }
-}
+}//end writeToFile
 
-void filePath(const char* directory, char* fileName, char* result){
+
+//This function constructs a file path by combining the directory path and the property name with replaces spaces and ".txt" at the end.
+//file path is stored in result variable
+void filePath(const Property* propertyPtr, char directory[LENGTH],char* result, int length){
+    //store property name in fileName variable
+    char fileName[length];
+    strcpy(fileName, propertyPtr->name);
     
-    const char* directoryPath="/Users/kyliesanchez/Desktop/CFile/fundraiser";
-    const char* fileName= "gym.txt";
-    
-    strcpy(result, directory);
-    if (result[strlen(result) - 1] != '/') {
-        strcat(result, "/");
-    }
+    //remove spaces and add ".txt" to property name
     replaceSpaces(fileName);
+    strcat(fileName, ".txt");
+    
+    //add "/" to end of directory name if needed
+    if(directory[strlen(directory)-1]!='/'){
+        strcat(directory, "/");
+    }
+    
+    //copy directory name to result variable and combine it with the fileName
+    strcpy(result, directory);
     strcat(result, fileName);
-}
+}//end filePath
 
+
+//This function takes a string and replaces spaces with underscores
+//this function changes the original string
 void replaceSpaces(char* str){
     if(str==NULL){
         puts("String is empty");
@@ -733,4 +819,4 @@ void replaceSpaces(char* str){
             }
         }
     }
-}
+}//end replaceSpaces
